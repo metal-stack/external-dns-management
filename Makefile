@@ -65,8 +65,8 @@ generate-proto:
 .PHONY: generate
 generate:
 	@./hack/generate-code
-	@GO111MODULE=on go generate ./pkg/apis/dns/...
 	@GO111MODULE=on go generate ./charts/external-dns-management
+	@GO111MODULE=on go generate ./pkg/apis/dns/...
 
 .PHONY: install-requirements
 install-requirements:
@@ -108,4 +108,10 @@ cnudie-cd-build-push:
 cnudie-create-installation:
 	@EFFECTIVE_VERSION=$(EFFECTIVE_VERSION) ./hack/create-installation.sh
 
-
+.PHONY: generate-in-docker
+generate-in-docker:
+	echo $(shell git describe --abbrev=0 --tags) > VERSION
+	docker run --rm -i$(DOCKER_TTY_ARG) -v $(PWD):/go/src/github.com/gardener/external-dns-management golang:1.17 \
+		sh -c "cd /go/src/github.com/gardener/external-dns-management \
+				&& make install-requirements generate \
+				&& chown -R $(shell id -u):$(shell id -g) ."
