@@ -25,6 +25,7 @@ import (
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/mappings"
 	"github.com/gardener/controller-manager-library/pkg/resources"
+
 	"github.com/gardener/external-dns-management/pkg/server/remote"
 	"github.com/gardener/external-dns-management/pkg/server/remote/embed"
 
@@ -40,6 +41,7 @@ import (
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/infoblox"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/netlify"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/openstack"
+	_ "github.com/gardener/external-dns-management/pkg/controller/provider/powerdns"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/remote"
 	_ "github.com/gardener/external-dns-management/pkg/controller/remoteaccesscertificates"
 	_ "github.com/gardener/external-dns-management/pkg/controller/replication/dnsprovider"
