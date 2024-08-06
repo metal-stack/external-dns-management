@@ -24,6 +24,9 @@ spec:
         {{- if semverCompare "<1.24-0" .Capabilities.KubeVersion.GitVersion }}
         checksum/psp: {{ include (print $.Template.BasePath "/psp.yaml") . | sha256sum }}
         {{- end }}
+        {{- if (and .Values.remoteaccess.enabled) }}
+        checksum/remote-access-cacert: {{ include (print $.Template.BasePath "/secret-remoteaccess.yaml") . | sha256sum }}
+        {{- end }}
 {{- if .Values.configuration.serverPortHttp }}
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{- .Values.configuration.serverPortHttp }}"
@@ -32,6 +35,10 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "external-dns-management.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
+        networking.gardener.cloud/to-dns: allowed
+        networking.gardener.cloud/to-runtime-apiserver: allowed
+        networking.gardener.cloud/to-public-networks: allowed
+        networking.gardener.cloud/to-private-networks: allowed
     spec:
       hostIPC: false
       hostNetwork: false
@@ -54,12 +61,12 @@ spec:
           readOnlyRootFilesystem: true
         args:
         - --name={{ include "external-dns-management.fullname" . }}
-        {{- if or .Values.configuration.identifier (not .Values.gardener.seed.identity) }}
-        - --identifier={{ required "A value is required for configuration.identifier (or gardener.seed.identity)! It must be unique, globally or at least for all instances running with the same account." .Values.configuration.identifier }}
+        {{- if or .Values.configuration.identifier (not .Values.gardener.seed.name) }}
+        - --identifier={{ required "A value is required for configuration.identifier (or gardener.seed.name)! It must be unique, globally or at least for all instances running with the same account." .Values.configuration.identifier }}
         - --remote-access-client-id={{ .Values.configuration.identifier }}
         {{- else }}
-        - --identifier=seed.gardener.cloud/{{ .Values.gardener.garden.clusterIdentity }}/{{ .Values.gardener.seed.identity }}
-        - --remote-access-client-id={{ .Values.gardener.seed.identity }}
+        - --identifier=seed.gardener.cloud/{{ .Values.gardener.garden.clusterIdentity }}/{{ .Values.gardener.seed.name }}
+        - --remote-access-client-id={{ .Values.gardener.seed.name }}
         {{- end }}
         {{- if .Values.remoteaccess.enabled }}
         - --remote-access-port={{ .Values.remoteaccess.port }}
@@ -925,7 +932,11 @@ spec:
         {{- end }}
       {{- end }}
       serviceAccountName: {{ include "external-dns-management.fullname" . }}
-      {{- if .Values.gardener.seed.identity }}
+      imagePullSecrets:
+      {{- with .Values.imagePullSecrets }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.gardener.seed.name }}
       priorityClassName: gardener-system-900
       {{- end }}
       {{- with .Values.nodeSelector }}
