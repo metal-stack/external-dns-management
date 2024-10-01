@@ -14,6 +14,7 @@ import (
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/mappings"
 	"github.com/gardener/controller-manager-library/pkg/resources"
 	"github.com/gardener/controller-manager-library/pkg/utils"
+	resourcesv1alpha1 "github.com/gardener/gardener/pkg/apis/resources/v1alpha1"
 	_ "go.uber.org/automaxprocs"
 	istionetworkingv1 "istio.io/client-go/pkg/apis/networking/v1"
 	istionetworkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
@@ -38,9 +39,9 @@ import (
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/infoblox"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/netlify"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/openstack"
+	_ "github.com/gardener/external-dns-management/pkg/controller/provider/powerdns"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/remote"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/rfc2136"
-	_ "github.com/gardener/external-dns-management/pkg/controller/remoteaccesscertificates"
 	_ "github.com/gardener/external-dns-management/pkg/controller/replication/dnsprovider"
 	_ "github.com/gardener/external-dns-management/pkg/controller/source/dnsentry"
 	_ "github.com/gardener/external-dns-management/pkg/controller/source/gateways/crdwatch"
@@ -76,13 +77,9 @@ func init() {
 	utils.Must(resources.Register(gatewayapisv1alpha2.SchemeBuilder))
 	utils.Must(resources.Register(gatewayapisv1beta1.SchemeBuilder))
 	utils.Must(resources.Register(gatewayapisv1.SchemeBuilder))
+	utils.Must(resources.Register(resourcesv1alpha1.SchemeBuilder))
 
 	embed.RegisterCreateServerFunc(remote.CreateServer)
-}
-
-func migrateExtensionsIngress(c controllermanager.Configuration) controllermanager.Configuration {
-	return c.GlobalGroupKindMigrations(resources.NewGroupKind("extensions", "Ingress"),
-		resources.NewGroupKind("networking.k8s.io", "Ingress"))
 }
 
 func main() {
@@ -90,5 +87,5 @@ func main() {
 		fmt.Println(Version)
 		os.Exit(0)
 	}
-	controllermanager.Start("dns-controller-manager", "dns controller manager", "nothing", migrateExtensionsIngress)
+	controllermanager.Start("dns-controller-manager", "dns controller manager", "nothing")
 }
