@@ -179,7 +179,7 @@ To install the <b>DNS controller manager</b> in your Kubernetes cluster, follow 
    ```
 
 For more examples about the custom resources and the annotations for services and ingresses
-see the `examples` directory.
+see the [examples](examples/) directory and [translation of `DNSEntries` examples](docs/usage/dnsentry_translation.md)
 
 ### Automatic creation of DNS entries for services and ingresses
 
@@ -207,6 +207,8 @@ metadata:
     dns.gardener.cloud/ttl: "500"
     # If you are delegating the DNS Management to Gardener, uncomment the following line (see https://gardener.cloud/documentation/guides/administer_shoots/dns_names/)
     #dns.gardener.cloud/class: garden
+    # To temporarily skip reconciliation of created entries
+    #dns.gardener.cloud/ignore: "true"
   name: test-service
   namespace: default
 spec:
@@ -263,6 +265,8 @@ metadata:
     #dns.gardener.cloud/ttl: "500"
     # If you are delegating the DNS Management to Gardener, uncomment the following line (see https://gardener.cloud/documentation/guides/administer_shoots/dns_names/)
     #dns.gardener.cloud/class: garden
+    # To temporarily skip reconciliation of created entries
+    #dns.gardener.cloud/ignore: "true"
   name: my-gateway
   namespace: default
 spec:
@@ -327,6 +331,8 @@ metadata:
     #dns.gardener.cloud/ttl: "500"
     # If you are delegating the DNS Management to Gardener, uncomment the following line (see https://gardener.cloud/documentation/guides/administer_shoots/dns_names/)
     #dns.gardener.cloud/class: garden
+    # To temporarily skip reconciliation of created entries
+    #dns.gardener.cloud/ignore: "true"
   name: my-gateway
   namespace: default
 spec:

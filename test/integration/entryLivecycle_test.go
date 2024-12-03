@@ -6,12 +6,14 @@ package integration
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/gardener/controller-manager-library/pkg/utils"
 	"github.com/gardener/external-dns-management/pkg/apis/dns/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("EntryLivecycle", func() {
@@ -27,6 +29,31 @@ var _ = Describe("EntryLivecycle", func() {
 		checkProvider(pr)
 
 		checkEntry(e, pr)
+
+		// check ignore annotation
+		orgTarget := UnwrapEntry(e).Spec.Targets[0]
+		newTarget := "2" + orgTarget
+		_, err = testEnv.UpdateEntry(e, func(entry *v1alpha1.DNSEntry) error {
+			if entry.Annotations == nil {
+				entry.Annotations = map[string]string{}
+			}
+			entry.Annotations["dns.gardener.cloud/ignore"] = "true"
+			entry.Spec.Targets[0] = newTarget
+			return nil
+		})
+		Ω(err).ShouldNot(HaveOccurred())
+		err = testEnv.AwaitEntryState(e.GetName(), "Ignored", "")
+		Ω(err).ShouldNot(HaveOccurred())
+		e, err = testEnv.GetEntry(e.GetName())
+		Ω(err).ShouldNot(HaveOccurred())
+		Ω(UnwrapEntry(e).Status.Targets).To(Equal([]string{orgTarget}))
+		err = testEnv.AnnotateObject(e, "dns.gardener.cloud/ignore", "")
+		Ω(err).ShouldNot(HaveOccurred())
+		err = testEnv.AwaitEntryState(e.GetName(), "Ready", "")
+		Ω(err).ShouldNot(HaveOccurred())
+		e, err = testEnv.GetEntry(e.GetName())
+		Ω(err).ShouldNot(HaveOccurred())
+		Ω(UnwrapEntry(e).Status.Targets).To(Equal([]string{newTarget}))
 
 		err = testEnv.DeleteProviderAndSecret(pr)
 		Ω(err).ShouldNot(HaveOccurred())
@@ -227,7 +254,7 @@ var _ = Describe("EntryLivecycle", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 
-	It("handles entry with multiple cname targets correctly (deduplication)", func() {
+	It("handles entry with multiple cname targets/resolveTargetsToAddresses correctly", func() {
 		pr, domain, _, err := testEnv.CreateSecretAndProvider("inmemory.mock", 0)
 		Ω(err).ShouldNot(HaveOccurred())
 
@@ -245,16 +272,41 @@ var _ = Describe("EntryLivecycle", func() {
 				"www.wikipedia.com",
 			}
 		}
-		e, err := testEnv.CreateEntryGeneric(index, setSpec)
+		e0, err := testEnv.CreateEntryGeneric(index, setSpec)
+		Ω(err).ShouldNot(HaveOccurred())
+
+		index = 1
+		setSpec = func(e *v1alpha1.DNSEntry) {
+			e.Spec.TTL = &ttl
+			e.Spec.DNSName = fmt.Sprintf("e%d.%s", index, domain)
+			e.Spec.Targets = []string{
+				"www.wikipedia.org",
+			}
+			e.Spec.ResolveTargetsToAddresses = ptr.To(true)
+		}
+		e1, err := testEnv.CreateEntryGeneric(index, setSpec)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		checkProvider(pr)
 
-		entry := checkEntry(e, pr)
-		targets := utils.NewStringSet(entry.Status.Targets...)
-		Ω(targets).To(HaveLen(len(entry.Status.Targets))) // no duplicates
+		By("check deduplication", func() {
+			entry := checkEntry(e0, pr)
+			targets := utils.NewStringSet(entry.Status.Targets...)
+			Ω(targets).To(HaveLen(len(entry.Status.Targets))) // no duplicates
+		})
 
-		err = testEnv.DeleteEntryAndWait(e)
+		By("check single target with resolveTargetsToAddresses", func() {
+			entry := checkEntry(e1, pr)
+			Ω(entry.Status.Targets).NotTo(BeEmpty())
+			for _, target := range entry.Status.Targets {
+				Ω(net.ParseIP(target)).NotTo(BeNil())
+			}
+			Ω(entry.Status.CNameLookupInterval).NotTo(BeNil())
+		})
+
+		err = testEnv.DeleteEntryAndWait(e0)
+		Ω(err).ShouldNot(HaveOccurred())
+		err = testEnv.DeleteEntryAndWait(e1)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		err = testEnv.DeleteProviderAndSecret(pr)

@@ -77,17 +77,17 @@ func (this *setup) AddKey(key ...resources.ClusterObjectKey) {
 	this.pendingKeys.Add(key...)
 }
 
-func (this *setup) Start(context Context) {
+func (this *setup) Start(pctx ProviderContext) {
 	this.lock.Lock()
 	defer this.lock.Unlock()
 	for c := range this.pending {
-		context.Infof("trigger %s", c)
-		_ = context.EnqueueCommand(c)
+		pctx.Infof("trigger %s", c)
+		_ = pctx.EnqueueCommand(c)
 	}
 
 	for key := range this.pendingKeys {
-		context.Infof("trigger key %s/%s", key.Namespace(), key.Name())
-		_ = context.EnqueueKey(key)
+		pctx.Infof("trigger key %s/%s", key.Namespace(), key.Name())
+		_ = pctx.EnqueueKey(key)
 	}
 	this.pending = nil
 	this.pendingKeys = nil
@@ -101,7 +101,7 @@ type state struct {
 
 	setup *setup
 
-	context   Context
+	context   ProviderContext
 	ownerresc resources.Interface
 	ownerupd  chan OwnerCounts
 
@@ -141,6 +141,8 @@ type state struct {
 
 	dnsTicker *Ticker
 
+	lookupProcessor *lookupProcessor
+
 	providerEventListeners []ProviderEventListener
 }
 
@@ -150,19 +152,19 @@ type rateLimiterData struct {
 	lastAccept  atomic.Value
 }
 
-func NewDNSState(ctx Context, ownerresc, secretresc resources.Interface, classes *controller.Classes, config Config) *state {
-	ctx.Infof("responsible for classes:     %s (%s)", classes, classes.Main())
-	ctx.Infof("availabled providers types   %s", config.Factory.TypeCodes())
-	ctx.Infof("enabled providers types:     %s", config.Enabled)
-	ctx.Infof("using default ttl:           %d", config.TTL)
-	ctx.Infof("using identifier:            %s", config.Ident)
-	ctx.Infof("dry run mode:                %t", config.Dryrun)
-	ctx.Infof("reschedule delay:            %v", config.RescheduleDelay)
-	ctx.Infof("zone cache ttl for zones:    %v", config.CacheTTL)
-	ctx.Infof("disable zone state caching:  %t", !config.ZoneStateCaching)
-	ctx.Infof("disable DNS name validation:  %t", config.DisableDNSNameValidation)
+func NewDNSState(pctx ProviderContext, ownerresc, secretresc resources.Interface, classes *controller.Classes, config Config) *state {
+	pctx.Infof("responsible for classes:     %s (%s)", classes, classes.Main())
+	pctx.Infof("availabled providers types   %s", config.Factory.TypeCodes())
+	pctx.Infof("enabled providers types:     %s", config.Enabled)
+	pctx.Infof("using default ttl:           %d", config.TTL)
+	pctx.Infof("using identifier:            %s", config.Ident)
+	pctx.Infof("dry run mode:                %t", config.Dryrun)
+	pctx.Infof("reschedule delay:            %v", config.RescheduleDelay)
+	pctx.Infof("zone cache ttl for zones:    %v", config.CacheTTL)
+	pctx.Infof("disable zone state caching:  %t", !config.ZoneStateCaching)
+	pctx.Infof("disable DNS name validation:  %t", config.DisableDNSNameValidation)
 	if config.RemoteAccessConfig != nil {
-		ctx.Infof("remote access server port: %d", config.RemoteAccessConfig.Port)
+		pctx.Infof("remote access server port: %d", config.RemoteAccessConfig.Port)
 	}
 
 	realms := access.RealmTypes{"use": access.NewRealmType(dns.REALM_ANNOTATION)}
@@ -170,13 +172,13 @@ func NewDNSState(ctx Context, ownerresc, secretresc resources.Interface, classes
 	return &state{
 		setup:               newSetup(),
 		classes:             classes,
-		context:             ctx,
+		context:             pctx,
 		ownerresc:           ownerresc,
 		secretresc:          secretresc,
 		config:              config,
 		realms:              realms,
 		accountCache:        NewAccountCache(config.CacheTTL, config.Options),
-		ownerCache:          NewOwnerCache(ctx, &config),
+		ownerCache:          NewOwnerCache(pctx, &config),
 		foreign:             map[resources.ObjectName]*foreignProvider{},
 		providers:           map[resources.ObjectName]*dnsProviderVersion{},
 		deleting:            map[resources.ObjectName]*dnsProviderVersion{},
@@ -211,6 +213,15 @@ func (this *state) Setup() error {
 	if err != nil || processors <= 0 {
 		processors = 5
 	}
+
+	this.lookupProcessor = newLookupProcessor(
+		this.context.NewContext("sub", "lookupProcessor"),
+		this.context,
+		max(processors/5, 2),
+		15*time.Second,
+		this.context.GetCluster(TARGET_CLUSTER).GetId(),
+		defaultLookupMetrics{},
+	)
 
 	if this.config.RemoteAccessConfig != nil {
 		secret := &corev1.Secret{}
@@ -302,6 +313,7 @@ func (this *state) Start() {
 	this.setup.Start(this.context)
 	this.setup = nil
 	this.startupTime = time.Now()
+	go this.lookupProcessor.Run(this.context.GetContext())
 }
 
 func (this *state) HasFinalizer(obj resources.Object) bool {
@@ -319,7 +331,7 @@ func (this *state) RemoveFinalizer(obj resources.Object) error {
 	return this.context.RemoveFinalizer(obj)
 }
 
-func (this *state) GetContext() Context {
+func (this *state) GetContext() ProviderContext {
 	return this.context
 }
 

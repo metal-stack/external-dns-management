@@ -90,6 +90,8 @@ func (this *DefaultDNSSource) GetDNSInfo(logger logger.LogContext, obj resources
 		info.Targets = extraction.Targets
 		info.Text = extraction.Texts
 		info.IPStack = extraction.IPStack
+		info.ResolveTargetsToAddresses = extraction.ResolveTargetsToAddresses
+		info.Ignore = extraction.Ignore
 	}
 	return info, err
 }

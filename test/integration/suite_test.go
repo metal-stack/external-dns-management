@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gardener/controller-manager-library/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/utils"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/compound/controller"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/mock"
 	_ "github.com/gardener/external-dns-management/pkg/controller/provider/remote"
@@ -26,6 +27,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	gatewayapisv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
@@ -40,9 +42,9 @@ var (
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	resources.Register(networkingv1.SchemeBuilder)
-	resources.Register(istionetworkingv1.SchemeBuilder)
-	resources.Register(gatewayapisv1.SchemeBuilder)
+	utils.Must(resources.Register(networkingv1.SchemeBuilder))
+	utils.Must(resources.Register(istionetworkingv1.SchemeBuilder))
+	utils.Must(resources.Register(gatewayapisv1.SchemeBuilder))
 
 	RunSpecs(t, "Integration Suite")
 }
@@ -50,7 +52,7 @@ func TestIntegration(t *testing.T) {
 var _ = BeforeSuite(func() {
 	var err error
 
-	controllerRuntimeTestEnv = &envtest.Environment{}
+	controllerRuntimeTestEnv = &envtest.Environment{UseExistingCluster: ptr.To(os.Getenv("USE_EXISTING_CLUSTER") != "")}
 	restConfig, err := controllerRuntimeTestEnv.Start()
 	Expect(err).ToNot(HaveOccurred())
 	Expect(restConfig).ToNot(BeNil())

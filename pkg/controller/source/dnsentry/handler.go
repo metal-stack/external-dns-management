@@ -46,14 +46,16 @@ func (this *DNSEntrySource) GetDNSInfo(_ logger.LogContext, obj resources.Object
 	name := dnsutils.DNSSetName(entry)
 
 	info := &source.DNSInfo{
-		Names:         dns.NewDNSNameSet(name),
-		Targets:       utils.NewStringSetByArray(entry.Spec.Targets),
-		Text:          utils.NewStringSetByArray(entry.Spec.Text),
-		OrigRef:       entry.Spec.Reference,
-		TTL:           entry.Spec.TTL,
-		Interval:      entry.Spec.CNameLookupInterval,
-		RoutingPolicy: entry.Spec.RoutingPolicy,
-		IPStack:       entry.Annotations[dns.AnnotationIPStack],
+		Names:                     dns.NewDNSNameSet(name),
+		Targets:                   utils.NewStringSetByArray(entry.Spec.Targets),
+		Text:                      utils.NewStringSetByArray(entry.Spec.Text),
+		OrigRef:                   entry.Spec.Reference,
+		TTL:                       entry.Spec.TTL,
+		Interval:                  entry.Spec.CNameLookupInterval,
+		RoutingPolicy:             entry.Spec.RoutingPolicy,
+		IPStack:                   entry.Annotations[dns.AnnotationIPStack],
+		ResolveTargetsToAddresses: entry.Spec.ResolveTargetsToAddresses,
+		Ignore:                    entry.Annotations[dns.AnnotationIgnore] == "true",
 	}
 	return info, nil
 }

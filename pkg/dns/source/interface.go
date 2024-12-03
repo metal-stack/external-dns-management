@@ -18,16 +18,18 @@ import (
 )
 
 type DNSInfo struct {
-	Names         dns.DNSNameSet
-	OwnerId       *string
-	TTL           *int64
-	Interval      *int64
-	Targets       utils.StringSet
-	Text          utils.StringSet
-	OrigRef       *v1alpha1.EntryReference
-	TargetRef     *v1alpha1.EntryReference
-	RoutingPolicy *v1alpha1.RoutingPolicy
-	IPStack       string
+	Names                     dns.DNSNameSet
+	OwnerId                   *string
+	TTL                       *int64
+	Interval                  *int64
+	Targets                   utils.StringSet
+	Text                      utils.StringSet
+	OrigRef                   *v1alpha1.EntryReference
+	TargetRef                 *v1alpha1.EntryReference
+	RoutingPolicy             *v1alpha1.RoutingPolicy
+	IPStack                   string
+	ResolveTargetsToAddresses *bool
+	Ignore                    bool
 }
 
 type DNSFeedback interface {
@@ -57,9 +59,11 @@ type DNSSourceType interface {
 }
 
 type TargetExtraction struct {
-	Targets utils.StringSet
-	Texts   utils.StringSet
-	IPStack string
+	Targets                   utils.StringSet
+	Texts                     utils.StringSet
+	IPStack                   string
+	ResolveTargetsToAddresses *bool
+	Ignore                    bool
 }
 
 type (

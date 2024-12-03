@@ -4,14 +4,12 @@ metadata:
   annotations:
     # If you are delegating the DNS management to Gardener, uncomment the following line (see https://gardener.cloud/documentation/guides/administer_shoots/dns_names/)
     #dns.gardener.cloud/class: garden
-    # To temporarily skip reconciliation of an entry
-    #dns.gardener.cloud/ignore: "true"
-  name: test
+  name: resolve-to-a
   namespace: default
 spec:
-  dnsName: garden.ringtest.dev.k8s.ondemand.com
+  dnsName: my.domain-name.example.com
   ttl: 600
   cnameLookupInterval: 30
+  resolveTargetsToAddresses: true # if this flag is set, the target name will be resolved and A/AAAA records will be created instead of an CNAME.
   targets:
-  - api.garden-a.ringdev.shoot.dev.k8s-hana.ondemand.com
-  - api.gardeb-b.ringdev.shoot.dev.k8s-hana.ondemand.com
+  - my.domain-name.example.com

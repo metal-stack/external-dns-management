@@ -24,6 +24,7 @@ import (
 	"github.com/gardener/controller-manager-library/pkg/logger"
 	"github.com/gardener/controller-manager-library/pkg/resources"
 	"github.com/gardener/controller-manager-library/pkg/resources/apiextensions"
+	"github.com/gardener/controller-manager-library/pkg/utils"
 	v1alpha1 "github.com/gardener/external-dns-management/pkg/apis/dns/v1alpha1"
 	"github.com/gardener/external-dns-management/pkg/controller/provider/mock"
 	"github.com/gardener/external-dns-management/pkg/controller/source/gateways/istio"
@@ -77,8 +78,8 @@ func doInit() {
 	mappings.ForControllerGroup(dnsprovider.CONTROLLER_GROUP_DNS_CONTROLLERS).
 		Map(controller.CLUSTER_MAIN, dnssource.TARGET_CLUSTER).MustRegister()
 
-	resources.Register(v1alpha1.SchemeBuilder)
-	resources.Register(apiextensionsv1.SchemeBuilder)
+	utils.Must(resources.Register(v1alpha1.SchemeBuilder))
+	utils.Must(resources.Register(apiextensionsv1.SchemeBuilder))
 
 	embed.RegisterCreateServerFunc(remote.CreateServer)
 }
@@ -463,6 +464,37 @@ func (te *TestEnv) UpdateEntryTargets(obj resources.Object, targets ...string) (
 	}
 	err = obj.Update()
 	return obj, err
+}
+
+func (te *TestEnv) UpdateEntry(obj resources.Object, modifier func(obj *v1alpha1.DNSEntry) error) (resources.Object, error) {
+	obj, err := te.GetEntry(obj.GetName())
+	if err != nil {
+		return nil, err
+	}
+	e := UnwrapEntry(obj)
+	err = modifier(e)
+	if err != nil {
+		return nil, err
+	}
+	err = obj.Update()
+	return obj, err
+}
+
+func (te *TestEnv) AnnotateObject(obj resources.Object, key, value string) error {
+	annots := obj.GetAnnotations()
+	if annots == nil {
+		if value != "" {
+			obj.SetAnnotations(map[string]string{key: value})
+		}
+	} else {
+		if value != "" {
+			annots[key] = value
+		} else {
+			delete(annots, key)
+		}
+		obj.SetAnnotations(annots)
+	}
+	return obj.Update()
 }
 
 func (te *TestEnv) DeleteEntryAndWait(obj resources.Object) error {
